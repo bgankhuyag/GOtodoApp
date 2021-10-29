@@ -5,6 +5,7 @@ import (
     "encoding/json"
     "fmt"
     "log"
+    "time"
     "net/http"
     "github.com/gorilla/mux"
     _ "github.com/jinzhu/gorm/dialects/mysql"
@@ -69,11 +70,48 @@ func (h *BaseHandler) getItems(w http.ResponseWriter, r *http.Request){
     json.NewEncoder(w).Encode(response)
 }
 
+func (h *BaseHandler) newItem(w http.ResponseWriter, r *http.Request) {
+  item := r.FormValue("item")
+  var response JsonResponse
+  if item == "" {
+    response = JsonResponse{Type: "error", Message: "Missing item!"}
+  } else {
+    currentTime := time.Now().Format("2006.01.02 15:04:05")
+    result, err := h.db.Exec("INSERT INTO `Applications` (`item`, `created_at`, `completed`) VALUES (?, ?, ?)", item, currentTime, 0)
+    checkErr(err)
+    lastId, err := result.LastInsertId()
+    checkErr(err)
+    fmt.Printf("The last inserted item id: %d\n", lastId)
+    response = JsonResponse{Type: "success", Message: "The item has been inserted successfully!"}
+  }
+  json.NewEncoder(w).Encode(response)
+}
+
+func (h *BaseHandler) updateItem(w http.ResponseWriter, r *http.Request) {
+  item := r.FormValue("item")
+  params := mux.Vars(r)
+  id := params["id"]
+  var response JsonResponse
+  if item == "" || id == "" {
+    response = JsonResponse{Type: "error", Message: "ID or item missing"}
+  } else {
+    result, err := h.db.Exec("UPDATE `Applications` SET `item`=? WHERE `id`=?", item, id)
+    checkErr(err)
+    affectedID, err := result.RowsAffected()
+    checkErr(err)
+    fmt.Printf("Affected item id: %d\n", affectedID)
+    response = JsonResponse{Type: "success", Message: "The item has been updated successfully!"}
+  }
+  json.NewEncoder(w).Encode(response)
+}
+
 func main() {
   db := setupDB()
   h := NewBaseHandler(db)
   r := mux.NewRouter()
-  r.HandleFunc("/getItems", h.getItems).Methods("GET")
+  r.HandleFunc("/get_items", h.getItems).Methods("GET")
+  r.HandleFunc("/new_item", h.newItem).Methods("POST")
+  r.HandleFunc("/update_item/{id}", h.updateItem).Methods("PUT")
   log.Fatal(http.ListenAndServe(":8080", r))
   defer db.Close()
 
