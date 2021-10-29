@@ -48,7 +48,12 @@ func setupDB() *sql.DB {
     return db
 }
 
+func enableCors(w *http.ResponseWriter) {
+  (*w).Header().Set("Access-Control-Allow-Origin", "*")
+}
+
 func (h *BaseHandler) getItems(w http.ResponseWriter, r *http.Request){
+    enableCors(&w)
     fmt.Fprintf(w, "Welcome to the HomePage!")
     // db := setupDB()
     results, err := h.db.Query("select * from Applications")
@@ -71,6 +76,7 @@ func (h *BaseHandler) getItems(w http.ResponseWriter, r *http.Request){
 }
 
 func (h *BaseHandler) newItem(w http.ResponseWriter, r *http.Request) {
+  enableCors(&w)
   item := r.FormValue("item")
   var response JsonResponse
   if item == "" {
@@ -88,19 +94,47 @@ func (h *BaseHandler) newItem(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *BaseHandler) updateItem(w http.ResponseWriter, r *http.Request) {
+  enableCors(&w)
   item := r.FormValue("item")
   params := mux.Vars(r)
   id := params["id"]
   var response JsonResponse
   if item == "" || id == "" {
-    response = JsonResponse{Type: "error", Message: "ID or item missing"}
+    fmt.Printf("ID: %s", item)
+    response = JsonResponse{Type: "error", Message: "ID or Item is missing"}
   } else {
     result, err := h.db.Exec("UPDATE `Applications` SET `item`=? WHERE `id`=?", item, id)
     checkErr(err)
-    affectedID, err := result.RowsAffected()
+    affected, err := result.RowsAffected()
     checkErr(err)
-    fmt.Printf("Affected item id: %d\n", affectedID)
-    response = JsonResponse{Type: "success", Message: "The item has been updated successfully!"}
+    fmt.Printf("Affected items: %d\n", affected)
+    if (affected == 0) {
+      response = JsonResponse{Type: "error", Message: "Item does not exist!"}
+    } else {
+      response = JsonResponse{Type: "success", Message: "The item has been updated successfully!"}
+    }
+  }
+  json.NewEncoder(w).Encode(response)
+}
+
+func (h *BaseHandler) deleteItem(w http.ResponseWriter, r *http.Request) {
+  enableCors(&w)
+  params := mux.Vars(r)
+  id := params["id"]
+  var response JsonResponse
+  if id == "" {
+    response = JsonResponse{Type: "error", Message: "ID is missing"}
+  } else {
+    result, err := h.db.Exec("DELETE FROM `Applications` WHERE `id`=?", id)
+    checkErr(err)
+    affected, err := result.RowsAffected()
+    checkErr(err)
+    fmt.Printf("Affected items: %d\n", affected)
+    if (affected == 0) {
+      response = JsonResponse{Type: "error", Message: "Item does not exist!"}
+    } else {
+      response = JsonResponse{Type: "success", Message: "The item has been deleted successfully!"}
+    }
   }
   json.NewEncoder(w).Encode(response)
 }
@@ -112,6 +146,7 @@ func main() {
   r.HandleFunc("/get_items", h.getItems).Methods("GET")
   r.HandleFunc("/new_item", h.newItem).Methods("POST")
   r.HandleFunc("/update_item/{id}", h.updateItem).Methods("PUT")
+  r.HandleFunc("/delete_item/{id}", h.deleteItem).Methods("DELETE")
   log.Fatal(http.ListenAndServe(":8080", r))
   defer db.Close()
 
