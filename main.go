@@ -6,6 +6,7 @@ import (
     "fmt"
     "log"
     "time"
+    "strconv"
     "net/http"
     "github.com/gorilla/mux"
     _ "github.com/jinzhu/gorm/dialects/mysql"
@@ -54,8 +55,6 @@ func enableCors(w *http.ResponseWriter) {
 
 func (h *BaseHandler) getItems(w http.ResponseWriter, r *http.Request){
     enableCors(&w)
-    fmt.Fprintf(w, "Welcome to the HomePage!")
-    // db := setupDB()
     results, err := h.db.Query("select * from Applications")
   	checkErr(err)
   	defer results.Close()
@@ -109,7 +108,7 @@ func (h *BaseHandler) updateItem(w http.ResponseWriter, r *http.Request) {
     checkErr(err)
     fmt.Printf("Affected items: %d\n", affected)
     if (affected == 0) {
-      response = JsonResponse{Type: "error", Message: "Item does not exist!"}
+      response = JsonResponse{Type: "error", Message: "Item update unsuccessful!"}
     } else {
       response = JsonResponse{Type: "success", Message: "The item has been updated successfully!"}
     }
@@ -131,10 +130,31 @@ func (h *BaseHandler) deleteItem(w http.ResponseWriter, r *http.Request) {
     checkErr(err)
     fmt.Printf("Affected items: %d\n", affected)
     if (affected == 0) {
-      response = JsonResponse{Type: "error", Message: "Item does not exist!"}
+      response = JsonResponse{Type: "error", Message: "Item delete unsuccessful!"}
     } else {
       response = JsonResponse{Type: "success", Message: "The item has been deleted successfully!"}
     }
+  }
+  json.NewEncoder(w).Encode(response)
+}
+
+func (h *BaseHandler) updateCompleted(w http.ResponseWriter, r *http.Request) {
+  enableCors(&w)
+  // completed := r.FormValue("completed")
+  completed, err := strconv.ParseBool(r.FormValue("completed"))
+  checkErr(err)
+  params := mux.Vars(r)
+  id := params["id"]
+  var response JsonResponse
+  if id == "" {
+    response = JsonResponse{Type: "error", Message: "ID is missing"}
+  } else {
+    result, err := h.db.Exec("UPDATE `Applications` SET `completed`=? WHERE `id`=?", completed, id)
+    checkErr(err)
+    affected, err := result.RowsAffected()
+    checkErr(err)
+    fmt.Printf("Affected items: %d\n", affected)
+    response = JsonResponse{Type: "success", Message: "The item has been updated successfully!"}
   }
   json.NewEncoder(w).Encode(response)
 }
@@ -146,37 +166,8 @@ func main() {
   r.HandleFunc("/get_items", h.getItems).Methods("GET")
   r.HandleFunc("/new_item", h.newItem).Methods("POST")
   r.HandleFunc("/update_item/{id}", h.updateItem).Methods("PUT")
+  r.HandleFunc("/update_completed/{id}", h.updateCompleted).Methods("PUT")
   r.HandleFunc("/delete_item/{id}", h.deleteItem).Methods("DELETE")
   log.Fatal(http.ListenAndServe(":8080", r))
   defer db.Close()
-
-	// var (
-	// 	id    int
-	// 	name  string
-	// 	price int
-	// )
-	// err = db.QueryRow("Select * from product where id = 1").Scan(&id, &name, &price)
-	// if err != nil {
-	// 	log.Fatal("Unable to parse row:", err)
-	// }
-	// fmt.Printf("ID: %d, Name: '%s', Price: %d\n", id, name, price)
-	// products := []struct {
-	// 	name  string
-	// 	price int
-	// }{
-	// 	{"Light", 10},
-	// 	{"Mic", 30},
-	// 	{"Router", 90},
-	// }
-	// stmt, err := db.Prepare("INSERT INTO product (name, price) VALUES (?, ?)")
-	// defer stmt.Close()
-	// if err != nil {
-	// 	log.Fatal("Unable to prepare statement:", err)
-	// }
-	// for _, product := range products {
-	// 	_, err = stmt.Exec(product.name, product.price)
-	// 	if err != nil {
-	// 		log.Fatal("Unable to execute statement:", err)
-	// 	}
-	// }
 }
