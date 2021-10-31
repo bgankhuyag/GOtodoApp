@@ -51,11 +51,13 @@ func setupDB() *sql.DB {
 
 func enableCors(w *http.ResponseWriter) {
   (*w).Header().Set("Access-Control-Allow-Origin", "*")
+  (*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+  (*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 }
 
 func (h *BaseHandler) getItems(w http.ResponseWriter, r *http.Request){
     enableCors(&w)
-    results, err := h.db.Query("select * from Applications")
+    results, err := h.db.Query("select * from Applications ORDER BY created_at")
   	checkErr(err)
   	defer results.Close()
     var list []ToDo
@@ -87,7 +89,7 @@ func (h *BaseHandler) newItem(w http.ResponseWriter, r *http.Request) {
     lastId, err := result.LastInsertId()
     checkErr(err)
     fmt.Printf("The last inserted item id: %d\n", lastId)
-    response = JsonResponse{Type: "success", Message: "The item has been inserted successfully!"}
+    response = JsonResponse{Type: "success", Data: []ToDo{ToDo{ID: int(lastId), Item: item, CreatedAt: currentTime, Completed: 0}}, Message: "The item has been inserted successfully!"}
   }
   json.NewEncoder(w).Encode(response)
 }
@@ -164,7 +166,7 @@ func main() {
   h := NewBaseHandler(db)
   r := mux.NewRouter()
   r.HandleFunc("/get_items", h.getItems).Methods("GET")
-  r.HandleFunc("/new_item", h.newItem).Methods("POST")
+  r.HandleFunc("/new_item", h.newItem).Methods("POST", "OPTIONS")
   r.HandleFunc("/update_item/{id}", h.updateItem).Methods("PUT")
   r.HandleFunc("/update_completed/{id}", h.updateCompleted).Methods("PUT")
   r.HandleFunc("/delete_item/{id}", h.deleteItem).Methods("DELETE")
