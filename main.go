@@ -6,7 +6,7 @@ import (
     "fmt"
     "log"
     "time"
-    "strconv"
+    // "strconv"
     "net/http"
     "github.com/gorilla/mux"
     _ "github.com/jinzhu/gorm/dialects/mysql"
@@ -143,8 +143,9 @@ func (h *BaseHandler) deleteItem(w http.ResponseWriter, r *http.Request) {
 func (h *BaseHandler) updateCompleted(w http.ResponseWriter, r *http.Request) {
   enableCors(&w)
   // completed := r.FormValue("completed")
-  completed, err := strconv.ParseBool(r.FormValue("completed"))
-  checkErr(err)
+  completed := r.FormValue("completed")
+  // checkErr(err)
+  fmt.Println(completed)
   params := mux.Vars(r)
   id := params["id"]
   var response JsonResponse
@@ -165,11 +166,11 @@ func main() {
   db := setupDB()
   h := NewBaseHandler(db)
   r := mux.NewRouter()
-  r.HandleFunc("/get_items", h.getItems).Methods("GET")
+  r.HandleFunc("/get_items", h.getItems).Methods("GET", "OPTIONS")
   r.HandleFunc("/new_item", h.newItem).Methods("POST", "OPTIONS")
-  r.HandleFunc("/update_item/{id}", h.updateItem).Methods("PUT")
-  r.HandleFunc("/update_completed/{id}", h.updateCompleted).Methods("PUT")
-  r.HandleFunc("/delete_item/{id}", h.deleteItem).Methods("DELETE")
+  r.HandleFunc("/update_item/{id}", h.updateItem).Methods("PUT", "OPTIONS")
+  r.HandleFunc("/update_completed/{id}", h.updateCompleted).Methods("PUT", "OPTIONS")
+  r.HandleFunc("/delete_item/{id}", h.deleteItem).Methods("DELETE", "OPTIONS")
   log.Fatal(http.ListenAndServe(":8080", r))
   defer db.Close()
 }
