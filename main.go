@@ -142,10 +142,7 @@ func (h *BaseHandler) deleteItem(w http.ResponseWriter, r *http.Request) {
 
 func (h *BaseHandler) updateCompleted(w http.ResponseWriter, r *http.Request) {
   enableCors(&w)
-  // completed := r.FormValue("completed")
   completed := r.FormValue("completed")
-  // checkErr(err)
-  fmt.Println(completed)
   params := mux.Vars(r)
   id := params["id"]
   var response JsonResponse
